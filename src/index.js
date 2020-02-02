@@ -1,4 +1,6 @@
 
+import RegionGrowing from "./regiongrowing.js"
+
 const loadImage = imageUrl => {
   const img = new Image()
   img.src = imageUrl
@@ -16,19 +18,24 @@ const setImageToCanvas = (image, canvasId) => {
 }
 
 let imgData
-const depthImage = loadImage('./IMG_0943_depth.png')
+// const depthImage = loadImage('./IMG_2017_depth.png')
+const depthImage = loadImage('./IMG_2017_depth.png')
 depthImage.onload = () => {
   imgData = setImageToCanvas(depthImage, 'faceCanvas')
 }
 
 let coloredImgData
-const coloredImg = loadImage('./IMG_0943.jpg')
+const coloredImg = loadImage('./IMG_2017.png')
 coloredImg.onload = () => {
   coloredImgData = setImageToCanvas(coloredImg, 'coloredFaceCanvas')
 }
-
+let regionColorMap = new Map()
 window.addEventListener('load', init)
 function init() {
+
+  let rigiongrowing = new RegionGrowing(coloredImgData)
+  let groupMap = rigiongrowing.execute()
+  
   // サイズを指定
   const width = 960
   const height = 540
@@ -61,50 +68,94 @@ function init() {
   const pictureRate = coloredImgData.height / imgData.height
 
   const pixelNum = imgData.height * imgData.width
-  let r = new Array(pixelNum)
-  let g = new Array(pixelNum)
-  let b = new Array(pixelNum)
-  let c = new Array(pixelNum)
-  r.fill(0)
-  g.fill(0)
-  b.fill(0)
-  c.fill(0)
+  let r = new Array(pixelNum).fill(0)
+  let g = new Array(pixelNum).fill(0)
+  let b = new Array(pixelNum).fill(0)
+  let c = new Array(pixelNum).fill(0)
+  
+  
+  // id: regionId
+  groupMap.forEach(e =>{
+    if(!regionColorMap.has(e)){
+        let color =    {
+            r: Math.floor(Math.random()*255), 
+            g: Math.floor(Math.random()*255), 
+            b: Math.floor(Math.random()*255)
+        }
+        regionColorMap.set(e, color)
+    }
+  })
+  let countMap = new Map()
+  groupMap.forEach(e => {
+    if(!countMap.has(e)){
+        countMap.set(e, 1)
+    } else {
+        let count = countMap.get(e)
+        // if(e !== 2)console.log(count);
+        countMap.set(e, count +1)
+    }
+  })
+  console.log(countMap);
+  
+
+  groupMap.forEach(e =>{
+    if(!regionColorMap.has(e)){
+        let color =    {
+            r: Math.floor(Math.random()*255), 
+            g: Math.floor(Math.random()*255), 
+            b: Math.floor(Math.random()*255)
+        }
+        regionColorMap.set(e, color)
+    }
+  })
+  console.log(regionColorMap);
+  
+
   for (let yi = 0; yi < coloredImgData.height; yi++) {
     for (let xi = 0; xi < coloredImgData.width; xi++) {
       // const height = coloredImgData.data[(xi + yi * coloredImgData.width) * 4]
       const x = Math.floor(xi / pictureRate)
       const y = Math.floor(yi / pictureRate)
-      if (yi < 2) {
-        // console.log(x+" : "+xi)
-      }
-      const pos = (xi + yi * coloredImgData.width) * 4
-      r[x + y * imgData.width] += coloredImgData.data[pos]
-      g[x + y * imgData.width] += coloredImgData.data[pos + 1]
-      b[x + y * imgData.width] += coloredImgData.data[pos + 2]
+    //   const pos = (xi + yi * coloredImgData.width) * 4
+    //   r[x + y * imgData.width] += coloredImgData.data[pos]
+    //   g[x + y * imgData.width] += coloredImgData.data[pos + 1]
+    //   b[x + y * imgData.width] += coloredImgData.data[pos + 2]
+    const pos = (xi + yi * coloredImgData.width)
+    const regionId = groupMap[pos]
+    // console.log(regionId)
+    const color = regionColorMap.get(regionId)
+    //   r[x + y * imgData.width] = coloredImgData.data[pos*4]
+    //   g[x + y * imgData.width] = coloredImgData.data[pos*4 + 1]
+    //   b[x + y * imgData.width] = coloredImgData.data[pos*4 + 2]
+      r[x + y * imgData.width] = color.r
+      g[x + y * imgData.width] = color.g
+      b[x + y * imgData.width] = color.b
       c[x + y * imgData.width]++
     }
   }
 
-  for (let yi = 0; yi < imgData.height; yi++) {
-    for (let xi = 0; xi < imgData.width; xi++) {
-      const pos = xi + yi * imgData.width
-      r[pos] = Math.floor(r[pos] / c[pos])
-      g[pos] = Math.floor(g[pos] / c[pos])
-      b[pos] = Math.floor(b[pos] / c[pos])
-    }
-  }
+  //色の平均化
+//   for (let yi = 0; yi < imgData.height; yi++) {
+//     for (let xi = 0; xi < imgData.width; xi++) {
+//       const pos = xi + yi * imgData.width
+//       r[pos] = Math.floor(r[pos] / c[pos])
+//       g[pos] = Math.floor(g[pos] / c[pos])
+//       b[pos] = Math.floor(b[pos] / c[pos])
+//     }
+//   }
 
-  for (let yi = 0; yi < imgData.height; yi += 12) {
-    for (let xi = 0; xi < imgData.width; xi += 12) {
+  for (let yi = 0; yi < imgData.height; yi += 5) {
+    for (let xi = 0; xi < imgData.width; xi += 5) {
       const height = imgData.data[(xi + yi * imgData.width) * 4]
       const pos = xi + yi * imgData.width
-      if (height < 180) continue
-      const geometry = new THREE.BoxGeometry(15, 15, 15)
+    //   if (height < 180) continue
+      const geometry = new THREE.BoxGeometry(4.8, 4.8, 4.8)
       const material = new THREE.MeshLambertMaterial({
         color: 'rgb(' + r[pos] + ',' + g[pos] + ',' + b[pos] + ')'
       })
       const box = new THREE.Mesh(geometry, material)
-      box.position.set(xi, height * 5, yi)
+    //   box.position.set(xi, height * 5, yi)
+      box.position.set(xi, 0, yi)
       scene.add(box)
     }
   }
@@ -116,3 +167,5 @@ function init() {
     requestAnimationFrame(tick)
   }
 }
+
+
